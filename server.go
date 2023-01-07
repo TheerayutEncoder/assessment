@@ -80,6 +80,31 @@ func updateExpenseHandler(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Updated successfully")
 }
 
+func getExpensesHandler(c echo.Context) error {
+	stmt, err := db.Prepare("SELECT * FROM expenses")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, Err{Message: "can't prepare query all expenses statment:" + err.Error()})
+	}
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, Err{Message: "can't query all expenses:" + err.Error()})
+	}
+
+	expenses := []Expense{}
+
+	for rows.Next() {
+		u := Expense{}
+		err := rows.Scan(&u.ID, &u.Title, &u.Amount, &u.Note, pq.Array(&u.Tags))
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, Err{Message: "can't scan expense:" + err.Error()})
+		}
+		expenses = append(expenses, u)
+	}
+
+	return c.JSON(http.StatusOK, expenses)
+}
+
 var db *sql.DB
 
 func main() {
@@ -113,6 +138,7 @@ func main() {
 	e.POST("/expenses", createExpenseHandler)
 	e.GET("/expenses/:id", getExpenseHandler)
 	e.PUT("/expenses/:id", updateExpenseHandler)
+	e.GET("/expenses", getExpensesHandler)
 
 	log.Fatal(e.Start(":" + os.Getenv("PORT")))
 }
