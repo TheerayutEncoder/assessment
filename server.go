@@ -9,8 +9,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/lib/pq"
-
-	_ "github.com/lib/pq"
 )
 
 type Expense struct {
@@ -39,6 +37,26 @@ func createExpenseHandler(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, u)
+}
+
+func getExpenseHandler(c echo.Context) error {
+	id := c.Param("id")
+	stmt, err := db.Prepare("SELECT id, title, amount, note, tags FROM expenses WHERE id = $1")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, Err{Message: "can't prepare query expense statment:" + err.Error()})
+	}
+
+	row := stmt.QueryRow(id)
+	u := Expense{}
+	err = row.Scan(&u.ID, &u.Title, &u.Amount, &u.Note, pq.Array(&u.Tags))
+	switch err {
+	case sql.ErrNoRows:
+		return c.JSON(http.StatusNotFound, Err{Message: "expense not found"})
+	case nil:
+		return c.JSON(http.StatusOK, u)
+	default:
+		return c.JSON(http.StatusInternalServerError, Err{Message: "can't scan expense:" + err.Error()})
+	}
 }
 
 var db *sql.DB
@@ -72,6 +90,7 @@ func main() {
 	e.Use(middleware.Recover())
 
 	e.POST("/expenses", createExpenseHandler)
+	e.GET("/expenses/:id", getExpenseHandler)
 
 	log.Fatal(e.Start(":" + os.Getenv("PORT")))
 }
