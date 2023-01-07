@@ -59,6 +59,27 @@ func getExpenseHandler(c echo.Context) error {
 	}
 }
 
+func updateExpenseHandler(c echo.Context) error {
+	id := c.Param("id")
+
+	u := Expense{}
+	err := c.Bind(&u)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, Err{Message: err.Error()})
+	}
+	sqlStatement := `
+		UPDATE expenses
+		SET title = $2, amount = $3, note = $4, tags = $5
+		WHERE id = $1;
+	`
+	_, err = db.Exec(sqlStatement, id, u.Title, u.Amount, u.Note, pq.Array(u.Tags))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, Err{Message: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, "Updated successfully")
+}
+
 var db *sql.DB
 
 func main() {
@@ -91,6 +112,7 @@ func main() {
 
 	e.POST("/expenses", createExpenseHandler)
 	e.GET("/expenses/:id", getExpenseHandler)
+	e.PUT("/expenses/:id", updateExpenseHandler)
 
 	log.Fatal(e.Start(":" + os.Getenv("PORT")))
 }
