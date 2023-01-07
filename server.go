@@ -132,6 +132,13 @@ func main() {
 
 	e := echo.New()
 
+	e.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
+		if username == "postest" && password == "45678" {
+			return true, nil
+		}
+		return false, nil
+	}))
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
